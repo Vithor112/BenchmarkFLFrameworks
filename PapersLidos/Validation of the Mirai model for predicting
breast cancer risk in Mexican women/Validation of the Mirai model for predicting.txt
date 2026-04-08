@@ -1,0 +1,22 @@
+Validation of the Mirai model for predicting
+breast cancer risk in Mexican women
+
+
+Pontos:
+
+The applicability of AI models to non-White, minority populations and diverse clinical settings remains
+understudied.
+
+In low-resourcecountries, incomplete cancer registries and outdatedhealthcare technologies, such as analog mammography
+systems and limited cloud storage, impede the integration of emerging technologies, such as artiﬁcial intelligence
+
+Our ﬁndings demonstrate that the Mirai
+model achieved moderate predictive performance
+
+Não é muito ütil
+
+To Learn
+
+C Index and AUC 
+
+DeLong test

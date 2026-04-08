@@ -1,0 +1,10 @@
+Artigo não é tão util. 
+
+
+the National Institutes of Health assembled multiple relevant stakeholders at a public meeting to discuss the current state of knowledge in AI in the medical imaging. This is a summary of the conclusions of the meeting.
+
+
+A recent review of studies that evaluated the performance of AI algorithms for the diagnostic analysis of medical images found only 6% of the 516 studies reviewed performed external validation [13], and so far, there is limited research demonstrating the generalizability of these algorithms to widespread clinical practice.
+
+ 
+ 

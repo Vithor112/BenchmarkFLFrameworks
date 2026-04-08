@@ -1,0 +1,21 @@
+What is the vanishing and exploding gradient problem?;It's when the gradient become so small, in the case of the vanishing problem, or large, in the case of exploding, in the backpropagation steps that it interferes with the learning of the early layers of the NN. 
+
+What is the primary consequence of Vanishing Gradients?;Weights in the early layers stop updating, which stalls the learning process.
+
+What is the primary consequence of Exploding Gradients?;Unstable weight updates that lead to model divergence (often resulting in NaN values).
+
+Why do Sigmoid and Tanh functions contribute to vanishing gradients?;They saturate at their boundaries (0 and 1), where the gradient is nearly zero.
+
+How improper weight initialization could contribute to vanishing gradients?; Small or large values can make the gradient explode or vanish.
+
+Why deep network with a large number of layers can cause the vanishing problem?; They perform several multiplications to the gradient which can make it shrink. 
+
+What a high learning rate can cause?; It can make the gradient to explode. 
+
+What technique prevents Exploding Gradients by capping the gradient magnitude?;Gradient Clipping.
+
+To prevent vanishing gradients, {{c1::non-saturating}} activation functions like {{c2::ReLU}} or {{c2::Leaky ReLU}} should be used.
+
+Vanishing gradients primarily interfere with the learning of the {{c1::early (input-side)}} layers of a neural network.
+
+In deep networks, the {{c1::chain rule}} causes gradients to {{c2::vanish}} if the values being repeatedly multiplied are significantly less than 1.

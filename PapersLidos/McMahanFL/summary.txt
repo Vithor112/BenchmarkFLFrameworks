@@ -1,0 +1,37 @@
+What was the primary motivation to create Federated Learning?; The great volume of data that modern mobile devices have. It was created to use this data to train better models while keeping them in the device, respecting the privacy of the users. 
+
+What are the principal constraint of Federated Learning?; The communication costs.
+
+Why the name "Federated Learning"?; Because the learning task is solved by a loose federation of participating devices (clients)
+
+Why data will tend to be Non-IID in FL?; The data will be Non-IID because normally a client will have data from different populations/locations with different distributions
+
+Why data can be Unbalanced in FL?; Because clients will have varying amounts of data. 
+
+Adding more clients always increase the perfomance of the model and speed the covergence?; No, experiments shows that adding more client after a certain point brings diminishing returns.
+
+How to tune mini-batch size in FL?; It should be large enough to take advantage of available parallelism on the client hardware, after that there is essentially no cost in computation time for lowering it
+
+How Mini Batch Gradient Descent works?; split the dataset into small subsets (batches) and compute the gradients for each batch.
+
+What lowering the Mini Batch Size can achieve in FL?;  It can increase the number of local gradient updates per epoch which in turn decreases the communication costs. Because it round packs more info
+
+Can we over-optimize in FL?; Yes it's possible and depends on the model. It can be useful to decrease the amount of local computation per round and decaying learning reates
+
+
+
+
+
+
+
+
+
+
+
+
+Pontos de interesse:  
+
+They found that even increasing the number of local updates in NON-IID data still provided meaninful updates
+
+Holding even an “anonymized” dataset can still put user
+privacy at risk via joins with other data

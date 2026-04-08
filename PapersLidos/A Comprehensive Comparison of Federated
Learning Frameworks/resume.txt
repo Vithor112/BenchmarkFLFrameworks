@@ -1,0 +1,37 @@
+Analisa 5 FL frameworks nos aspectos de FL-functionalities, user-friendliness, tech-
+nical aspects, and legal aspects além de um benchmark delas
+ 
+Literature Review Methodology: Title: (”federated learning” OR ”fl”)
+AND (”frameworks” OR ”frame-work”
+OR ”comparison” OR ”development” OR
+”platform” OR benchmark”) arxiv, acm and IEEE
+
+
+
+Defeitos: 
+
+Destaca que OpenFL tem o melhor desempenho apesar que Fonio, S.: Benchmarking Federated Learning Frameworks for Medical Imaging já mostrou que tem uma queda de velocidade consideravel com um grande número de clientes. O que não deve ter sido percebido porque não variou esse parâmetro. 
+
+O ganho de acuracia no OpenFL não parece ser significativo no caso do Flower. Além que o OpenFL foi descontinuado
+
+
+Ler: 
+
+The Comparative Analysis of Federated Learning Frameworks.
+In: 2023 Eighth International Conference on Fog and Mobile Edge Computing
+
+Open-Source Federated Learning Frameworks for IoT: A Compar-
+ative Review and Analysis
+
+A User-Centric Assessment
+of Federated Learning Frameworks
+
+
+Aprender: 
+
+Defines whether the framework follows a centralized
+or decentralized communication scheme.
+
+Horizontal Federated Learning and Vertical Federated Learning
+
+

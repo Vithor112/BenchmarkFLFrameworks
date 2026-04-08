@@ -1,0 +1,27 @@
+What is the primary use case and target environment for the Flower framework?;Large-scale Federated Learning (FL) experiments (millions of clients/thousands per round), primarily focused on edge devices.
+
+Is Flower tied to a specific Machine Learning framework (e.g., PyTorch or TensorFlow)?;No, it is ML framework-agnostic. Different clients can even use different ML frameworks at the same time.
+
+How does Flower handle testing for heterogeneous mobile and wireless clients?;It provides built-in tools to simulate challenging conditions (compute, memory, network) in a cloud environment for realistic evaluation.
+
+In Flower, what interface is used to implement new algorithms for FL aggregation?;The Strategy interface.
+
+In Flower's server architecture, what is the role of the Client Manager?;It manages a set of Client Proxy objects and is queried by the other modules to get them.
+
+What does a Client Proxy object represent in Flower?;It represents a single connected client responsible for sending and receiving flower protocol messages. Offline clients do not have a proxy object.
+
+In the Flower server architecture, what component orchestrates the process, and what component makes the actual decisions?;The FL loop orchestrates the entire learning process, but it delegates decisions (configuration, aggregation, evaluation) to the configured Strategy.
+
+What is the primary role of the client side in Flower's architecture?;To wait for messages from the server and react to them by calling user-provided training and evaluation functions.
+
+What is the Virtual Client Engine (VCE) in Flower?;A tool that schedules, instantiates, and runs virtualized Flower Clients based on client pools, compute/memory budgets, and FL hyperparameters.
+
+What allows Flower to directly handle protocol messages on edge devices?;The Edge Client Engine, which provides low-level integration for edge clients.
+
+What is Flower's default communication protocol built on top of?;Bi-directional gRPC (though components not tied to gRPC are unaware of it).
+
+How does Flower handle serialization to remain "serialization-agnostic"?;Clients receive instructions as raw byte arrays, deserialize them, and execute them, allowing users to use custom serialization methods.
+
+Does increasing the number of participating clients in a round always result in faster convergence?;No, there is an empirical threshold, beyond this point, adding more clients makes convergence slower.
+
+Under what conditions is Flower generally faster than other FL frameworks?;When training epochs are larger or when there is a high number of clients.

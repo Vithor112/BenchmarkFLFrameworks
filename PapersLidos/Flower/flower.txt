@@ -1,0 +1,38 @@
+Flower was created to enable large-scale FL experiments with millions of clients and thousands partipating in a round. It was focused on edge devices
+
+It's ML framework-agnostic.
+
+Flower provides support for extending FL implementations to mobile and wireless clients, with heterogeneous compute, memory, and network resources. 
+
+Provides built- in tools to simulate many of these challenging conditions in a cloud environment and allows for a realistic evaluation of FL algorithms.
+
+Measurements about the performance of clientperformance should be able to be easily collected
+
+Clients can use different ML frameworks at the same time.
+
+New algorithms of aggregation can be implemented using the Strategy interface.
+Current has FedAvg, FedProx, QFedAvg, FedAdagrad, FedYogi, FedAdam, Fault Tolerant FedAvg. 
+
+Flower is Scalable, Client-agnostic (interoperable with different programming languages, operating systems, and hardware), Communication-agnostic (different serialization and communication approaches), Privacy-agnostic (support common approaches (secure aggregation and differential privacy) but doesn't is prescriptive about their usage. 
+
+Architecture: 
+In the server side we have:
+A Client Manager, which manages a set of Client proxy objects (each of them represents a single client connected to the server, and are responsible for sending and receiving Flower Protocol messages, Clients which are offline do not have an associated ClientProxy object). 
+The FL loop orchestrates the entire leaqrning process, but does not make decisions. Delegating them to the configured strategy. 
+The strategy is responsible for configuring the next round of FL and to make the result aggregation. In case of a federated evaluation, the strategy also has to define the evaluation. 
+
+For the client side, it only waits for messages from the server and react to them calling user-provided training and evaluation functions
+
+Virtual Client Engine (VCE): a tool that enables the virtualization of Flower Clients given a pool of clients, their respective compute and memory budgets, and, the FL-specific hyper-
+parameters (e.g. number of clients per round). The VCE will schedule, instantiate and run the Flower Clients
+
+Edge Client Engine: Flower provides a low-level integration by directly handling Flower Protocol messages on the client, allowing to use several edge devices as clients. 
+
+The Flower communication protocol is currently implemented on top of bi-directional gRPC but components that are not tied to gRPC are unaware of it.
+
+
+Flower clients receive instructions (messages) as raw byte arrays (either via the network or throught inter-process communication), deserialize the instruction, and execute the instruction. Flower uniquely serialization-agnostic and enables users to experiment with custom serialization methods
+
+selecting large numbers of clients in each training round does not necessarily translate into faster convergence times. There is a empirical threshold for which if we increase the number of participating clients, the convergence will be slower. 
+
+Flower is faster compared to other frameworks when the epoch are larger or clients. 

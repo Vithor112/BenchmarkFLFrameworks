@@ -1,0 +1,5 @@
+As partes mais relevantes são as que detalha os ataque de Model Inversion Attacks e  Membership inference attacks que podem ser usados por clientes no Federated Learning para quebrar a privacidade dos datasets de outros clientes. 
+
+Pode ser um ponto para mencionar.
+
+Necessário ler sobre Differential Privacy

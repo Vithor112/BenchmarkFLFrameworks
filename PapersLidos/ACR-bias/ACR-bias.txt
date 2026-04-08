@@ -1,0 +1,20 @@
+Very cautious of the bias that AI models can have 
+
+The bias is introduced by the lack of diversity in the training data. 
+
+A large portion of AI to radiology is being developed in the context of single institution and it can be hard to generalize these AIs.
+
+Pickup LC, Gleeson F, Talwar A, Kadir T. Lung nodule risk stratiﬁ-
+cation using CNNs: can we generalize from screening training data?
+Presented at: Conference on Machine Intelligence in Medical Imaging;
+September 26-27, 2017; Baltimore, Maryland
+
+This study above shows that a AI for detecting cancer in pulmonary nodules in CT had a higher perfomance with a US dataset than a Oxford one.
+
+The patient population being quite different from institution to institution is a factor that can potencialize this bias.
+
+The law to protect the privacy of patients prompt many institutions to not share data, making a diverse training dataset more difficult.
+
+It also show that is important to validate and monitor the algorithm perfomance. 
+
+

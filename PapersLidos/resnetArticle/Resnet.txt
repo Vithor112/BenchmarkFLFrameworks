@@ -1,0 +1,19 @@
+What is the main purpose of ResNet?; Facilitate the training of deeper networks.
+
+Why having a Neural Network with a lot of layers is important?; Because Deeper networks can learn more complex feature hierarchies (levels of abstraction)
+
+What is the main obstacle of putting more layers in a network?; A saturation followed by a degradation of the accuracy and a higher training error.
+
+What did solve the vanish/exploding gradient problem?; Normalized initalization and intermediate normalization layers. 
+
+Why a deeper model should not produce higher training error than a shallower network?; Because, at minimum, you can add identity layers (layers that do nothing) and the shallower network after those, which should at least have the error rate.
+
+Why is residual learning easier for the optimizer?;  It is easier to push the residual $F(x)$ to zero than to learn an identity mapping $H(x) = x$ from scratch.
+
+What is the difference between a traditional network and a residual network, mathmatically?; A traditional NN hopes to fit a underlying mapping $H(x)$, while a resnet hope to find a residual one $F(x) = H(x) - x$, in this case F. 
+
+What is the special component of a resnet?;  The skip connection, where for every block of layers (residual block), the output of the block is sum with the input the block received.
+
+What if in a resnet the input and output of the residual block have different dimensions?; We apply a linear projection in the skip connection to match the dimensions of the output.
+
+Deeper neural networks are more {{c1::difficult}} to train

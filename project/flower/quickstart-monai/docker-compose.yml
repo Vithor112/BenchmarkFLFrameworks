@@ -1,0 +1,855 @@
+services:
+  superlink:
+    image: flwr/superlink:1.28.0
+    container_name: superlink
+    ports:
+    - 9091:9091
+    - 9092:9092
+    - 9093:9093
+    command:
+    - --insecure
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+  superexec-serverapp:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-serverapp
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --plugin-type
+    - serverapp
+    - --appio-api-address
+    - superlink:9091
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-1:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-1
+    ports:
+    - 9094:9094
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=0 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9094
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-1:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-1
+    depends_on:
+    - supernode-1
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-1:9094
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-2:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-2
+    ports:
+    - 9095:9095
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=1 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9095
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-2:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-2
+    depends_on:
+    - supernode-2
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-2:9095
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-3:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-3
+    ports:
+    - 9096:9096
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=2 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9096
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-3:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-3
+    depends_on:
+    - supernode-3
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-3:9096
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-4:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-4
+    ports:
+    - 9097:9097
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=3 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9097
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-4:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-4
+    depends_on:
+    - supernode-4
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-4:9097
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-5:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-5
+    ports:
+    - 9098:9098
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=4 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9098
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-5:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-5
+    depends_on:
+    - supernode-5
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-5:9098
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-6:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-6
+    ports:
+    - 9099:9099
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=5 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9099
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-6:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-6
+    depends_on:
+    - supernode-6
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-6:9099
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-7:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-7
+    ports:
+    - 9100:9100
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=6 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9100
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-7:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-7
+    depends_on:
+    - supernode-7
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-7:9100
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-8:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-8
+    ports:
+    - 9101:9101
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=7 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9101
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-8:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-8
+    depends_on:
+    - supernode-8
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-8:9101
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-9:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-9
+    ports:
+    - 9102:9102
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=8 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9102
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-9:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-9
+    depends_on:
+    - supernode-9
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-9:9102
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-10:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-10
+    ports:
+    - 9103:9103
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=9 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9103
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-10:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-10
+    depends_on:
+    - supernode-10
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-10:9103
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-11:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-11
+    ports:
+    - 9104:9104
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=10 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9104
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-11:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-11
+    depends_on:
+    - supernode-11
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-11:9104
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-12:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-12
+    ports:
+    - 9106:9106
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=11 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9106
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-12:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-12
+    depends_on:
+    - supernode-12
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-12:9106
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-13:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-13
+    ports:
+    - 9107:9107
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=12 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9107
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-13:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-13
+    depends_on:
+    - supernode-13
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-13:9107
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-14:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-14
+    ports:
+    - 9108:9108
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=13 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9108
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-14:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-14
+    depends_on:
+    - supernode-14
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-14:9108
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-15:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-15
+    ports:
+    - 9109:9109
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=14 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9109
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-15:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-15
+    depends_on:
+    - supernode-15
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-15:9109
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-16:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-16
+    ports:
+    - 9110:9110
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=15 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9110
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-16:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-16
+    depends_on:
+    - supernode-16
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-16:9110
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-17:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-17
+    ports:
+    - 9111:9111
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=16 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9111
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-17:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-17
+    depends_on:
+    - supernode-17
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-17:9111
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-18:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-18
+    ports:
+    - 9112:9112
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=17 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9112
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-18:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-18
+    depends_on:
+    - supernode-18
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-18:9112
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-19:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-19
+    ports:
+    - 9113:9113
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=18 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9113
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-19:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-19
+    depends_on:
+    - supernode-19
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-19:9113
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  supernode-20:
+    image: flwr/supernode:1.28.0
+    container_name: supernode-20
+    ports:
+    - 9114:9114
+    depends_on:
+    - superlink
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --node-config
+    - partition-id=19 num-partitions=200
+    - --clientappio-api-address
+    - 0.0.0.0:9114
+    - --isolation
+    - process
+    networks:
+    - flwr-network
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+  superexec-clientapp-20:
+    build:
+      context: .
+      dockerfile: superexec.Dockerfile
+    image: flwr_superexec:0.0.1
+    container_name: superexec-clientapp-20
+    depends_on:
+    - supernode-20
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-20:9114
+    networks:
+    - flwr-network
+    volumes:
+    - ./MedNIST:/app/MedNIST
+    environment:
+    - FLWR_LOG_LEVEL=DEBUG
+networks:
+  flwr-network:
+    driver: bridge

@@ -1,0 +1,83 @@
+Foca na diferença entre o FL cross-device e cross-silo e seus desafios.
+
+Não é muito útil. Fala daa geme theory de organizações para participarem de um FL. Interessante mas não contribui para o TCC
+
+Challanges:
+
+Effectiveness is concerned with training a global model with a desirable performance considering the high heterogeneity of participating clients
+
+How to optimizate effectiveness 
+
+effectiveness is affected by 
+Statistical heterogeneity: This often refers to the non-
+i.i.d. data of clients [4]. For example, different hospitals
+may hold non-i.i.d. disease data due to having geographi-
+cally and demographically varying patients
+
+
+Data moderation approaches:
+FL performance degradation with non-i.i.d. data stems from the
+heterogeneous data distributions. Data moderation aims
+to tackle this issue by modifying the distributions
+
+
+data sharing, where clients’ local
+models are trained by not only the local data but also
+the shared global data at the server. Another method is
+data augmentation, which replenishes the local data with
+augmentations based on information from other clients’
+data distributions
+
+
+Personalization approaches:
+
+ The global model com-
+puted by the server may negatively impact the clients’
+local model performances in terms of performance and
+generalization, due to the drift of heterogeneous data.
+Personalization approaches aim to address this issue by
+adjusting the local models based on the local tasks. Examples: local fine-tuning, knowledge distillation and personalized layer
+
+Clustering approaches: While most FL frameworks
+assume that there is only one global model, it can
+be insufficient to learn clients’ information when data
+are highly heterogeneous. Clustering approaches try to
+mitigate this issue by grouping the clients into different
+clusters, in which each cluster maintains a server-client
+framework. In particular, similar clients are allocated to
+the same cluster, where similarity is measured by the loss
+values or their uploaded model weights
+
+Data leakage attacks:
+
+
+One type is membership inference attack, which aims to check
+whether certain data points belong to the training set. Canon-
+ically, the attacker infers the information via guesswork and
+training the predictive model to predict the original training
+data. Another type is reconstruction attack, which aims to
+reconstruct the training data using inference techniques. In
+particular, reconstruction attack uses GANs to synthesize fake
+samples that have the same distributions as the training set
+without accessing the raw data.
+
+
+
+Methods to defend against it:
+
+Differential privacy: add noise to personal sensitive attributes
+to protect privacy. In the context of federated learning,
+the clients add noise to their uploaded model updates to
+mitigate inference attacks. Note that using differential
+privacy improves clients’ privacy protection at the cost
+of global model performance
+
+
+Homomorphic encryption: Such an approach enables
+certain operations (e.g., addition) to be performed directly
+on cipher texts without decryption requirements. In cross-
+silo FL, each client uploads the encrypted local model
+updates to the server for aggregation, and the result is
+then sent back to each client for local decryption
+
+

@@ -1,0 +1,9 @@
+What is a disadvantage of working with fedAvg for system heterogeneity?;A common disvantage is that FedAvg does not allow participating devices to perform variable amounts of local work based on their underlying systems constraints
+
+What is a advantages of working with fedAvg for non-iid data?;It tends to diverge and does not have convergence guarantees. 
+
+What is the advatanges of FedProx in relation to FedAvg?;FedProx explicitly accounts for both system heterogeneity (by allowing partial work) and statistical heterogeneity (by using a proximal term to stabilize convergence).
+
+What is the effect of the epoch hyperparameter in FL?;A high epoch decrease the network communication between devices and for more local computation to be done, in turn, it may lead each device towards the optima of its local objective as opposed to the global objective, which may lead to divergence. Also slow devices could not complete all the epoch in time and have to drop out of the procedure.
+
+What are the changes in fedProx in relation to fedAvg?; It allows partial work, instead of dropping the devices like FedAvg, it aggregates their results. It adds a proximal term that restrict local updates from drifting too far from the initial global model in a single round. The greater the proximal term, the more restrict the updates are.

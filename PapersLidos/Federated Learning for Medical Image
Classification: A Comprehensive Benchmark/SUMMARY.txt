@@ -1,0 +1,37 @@
+Medem a perfomance e custos computacionais e de comunicação de algoritmos de agregação de aprendizado federado
+
+Propõe data augmentation para melhorar perfomance
+
+horizontal federated learning ->  where participants share the same feature space but have different sample sets
+
+Testes na área de saúde não testam bem para data non idd usam Dirichlet distributions para simular mas falta feature heterogeneity across images
+
+Artigo de cross silo citou knowledge distillation e esse também... Interessante (personalized federated learning) 
+
+Maior problema do FL sempre parece ser statistical heterogeneity. McMahan subestimou quando introduziu FL 
+
+client drift->  quick overfitting of local optimizations toward local optima, negating the efficiency of server aggregations.
+
+Paradgimas: Traditional Optimization Approach -> ainda baseados no fedAvg Tentando mexer no processo do treinamento do FedAvg, modificando o grandiente, output do modelo local, parâmetros do modelo local, funções de perda para que não se afaste muito do modelo global, ou no servidor controlando as atualizações para não divergir muito do ótimo global.
+
+Personalized Federated Learning-/> Cada cliente mantém um modelo próprio que vai perfomar melhor nos seus dados. No servidor isso é possível atualizando somente as camadas finais do modelo, ou não atualizando camada de normalização de batch e na parte do cliente knowledge distillation para suavizar as atualizações entre os mdodelos. 
+
+One-Shot Federated Learning -> Clientes treinam somente no seu dataset e em uma só comunicação informam todos os parâmetros relevantes. O servidor lida com heterogenidade de modelos usando técnicas de ensemble ou knowledge distillation. Pouco custo de comunicação porém o servidor necessita de um dataset próprio para melhorar a perfomance desse modleo global. 
+
+Outras tecnicas usam os clientes para treinar um modleo de difusão para produzir dados para treinar um modelo de classificação global. 
+
+Descreve vários algoritmos de agregação de forma superficial.
+
+Seu algoritmo proposto é um que usa Denoising Diffusion Probabilistic Models para aumentar o tamanho dos datasets locais. Esse DDPM funciona adicionando ruído gaussiano as imagens num processo de markov e depois ele reverte esse ruído, usando uma rede neural, para aproximar a imagem pré-ruido. Treinar com dados gerados artificialmente reduz a perfomance do modelo. Para lidar com isso eles adicionam o conceito de soft label (label smoothing technique), transformando os labels em vetores probabilisticos para cada categoria aumentando a entropia dos labels gerados. 
+
+Utilizam vários conjuntos de dados, o mais interessante é o a real-world multi-center medical imaging dataset TB
+
+A challenge in implementing ResNet-50 within a federated learning framework is the aggregation of batch normalization layers. While local batch normalization layers can effectively handle local distributions, simple averaging of these parameters may not adequately capture the statistics of the global distribution, thereby introducing more instability. For instance, parameters named with “num batches tracked” should be excluded from the scope of aggregated parameters
+
+Avaliou os modelos por métrica de acuracia no campo da saúde ? Meio questionável essa decisão deles. 
+
+Utilizou o numero de parametros dos modelos para estimar o custo de comunicação
+
+Recomendam o seu algoritmo com DDPM e soft label em segundo lugar MOON e em terceiro lugar FedProx
+
+Não exploraram numero de clientes variados
