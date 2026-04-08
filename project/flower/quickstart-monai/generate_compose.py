@@ -78,7 +78,20 @@ def generate_flower_compose(num_nodes):
             ],
             "networks": ["flwr-network"],
             "volumes": ["./MedNIST:/app/MedNIST"],
-            "environment": ["FLWR_LOG_LEVEL=DEBUG"]
+            "environment": ["FLWR_LOG_LEVEL=DEBUG"],
+            "deploy": {
+                 "resources": {
+                     "reservations": {
+                         "devices": [
+                             {
+                                 "count": "all",
+                                 "driver": "nvidia",
+                                 "capabilities": ["gpu"]
+                             }
+                         ]
+                     }
+                 }
+            }
         }
         
         current_port += 1

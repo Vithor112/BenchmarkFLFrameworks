@@ -84,6 +84,12 @@ services:
     container_name: superexec-clientapp-1
     depends_on:
       - supernode-1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
     command:
       - --insecure
       - --plugin-type

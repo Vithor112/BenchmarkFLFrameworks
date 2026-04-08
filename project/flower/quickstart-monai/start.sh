@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -f docker compose.yml ]; then
+if [ -f docker-compose.yml ]; then
     docker compose down 
 fi
 

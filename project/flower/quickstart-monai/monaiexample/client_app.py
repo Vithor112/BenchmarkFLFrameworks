@@ -18,7 +18,8 @@ def train(msg: Message, context: Context):
     model = load_model()
     model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+    print(f"Torch CUDA version: {torch.version.cuda}")
+    print(f"Loaded model on device {device}.")
     # Load the data
     partition_id = context.node_config["partition-id"]
     num_partitions = context.node_config["num-partitions"]
