@@ -40,6 +40,7 @@ def generate_flower_compose(num_nodes):
     nodes_created = 0
     while nodes_created < num_nodes:
         if is_port_in_use(current_port):
+            # Thank you copilot for the logs with emojis
             print(f"⚠️ Port {current_port} is in use, skipping...")
             current_port += 1
             continue

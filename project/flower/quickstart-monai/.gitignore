@@ -1,2 +1,3 @@
 MedNIST*
 .data_download.lock
+docker-compose.yml

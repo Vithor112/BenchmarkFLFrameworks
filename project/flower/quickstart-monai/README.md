@@ -2,7 +2,7 @@
 
 - Python3 
 - Pip
-- Netstat 
+- Netstat (Check port availability while generating docker compose)
 - Docker
 
 ## Set Up
