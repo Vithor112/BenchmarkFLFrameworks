@@ -12,7 +12,6 @@ def generate_flower_compose(num_nodes):
     total_partitions = 200
     start_port = 9094
     current_port = start_port
-    
     compose_dict = {
         "services": {
             "superlink": {
@@ -30,6 +29,45 @@ def generate_flower_compose(num_nodes):
                 "command": ["--insecure", "--plugin-type", "serverapp", "--appio-api-address", "superlink:9091"],
                 "networks": ["flwr-network"],
                 "environment": ["FLWR_LOG_LEVEL=DEBUG"]
+            },
+            "prometheus": {
+                "image": "prom/prometheus:latest",
+                "container_name": "prometheus",
+                "ports": ["9090:9090"],
+                "command": ["--config.file=/etc/prometheus/prometheus.yml"],
+                "volumes": ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro"],
+                "depends_on": ["cadvisor", "dcgm_exporter"]
+            },
+            "cadvisor": {
+                "image": "gcr.io/cadvisor/cadvisor:latest",
+                "container_name": "cadvisor",
+                "ports": ["8080:8080"],
+                "volumes": [
+                    "/:/rootfs:ro",
+                    "/var/run:/var/run:rw",
+                    "/sys:/sys:ro",
+                    "/var/lib/docker/:/var/lib/docker:ro"
+                ]
+            },
+            "dcgm_exporter": {
+                "image": "nvidia/dcgm-exporter:4.5.2-4.8.1-ubuntu22.04",
+                "container_name": "dcgm_exporter",
+                "cap_add": ["SYS_ADMIN"],
+                "deploy": {
+                    "resources": {
+                        "reservations": {
+                            "devices": [
+                                {
+                                    "driver": "nvidia",
+                                    "count": "all",
+                                    "capabilities": ["gpu"]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "ports": ["9400:9400"],
+                "command": "-f /etc/dcgm-exporter/dcp-metrics-included.csv"
             }
         },
         "networks": {
