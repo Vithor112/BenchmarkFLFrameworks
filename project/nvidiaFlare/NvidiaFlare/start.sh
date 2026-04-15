@@ -6,5 +6,6 @@ docker build -t nvflare-pt-docker . -f Dockerfile
 python job/job.py
 nvflare poc prepare -d nvflare-pt-docker -n $1
 docker compose up -d
-nvflare poc start -gpu 0 -ex admin@nvidia.com
+export GPU2USE='--gpus=all' # nvflare poc start -gpu flag does not work with docker :)
+nvflare poc start -ex admin@nvidia.com
 nvflare job submit -j /tmp/nvflare/jobs/job_config/job_test/
