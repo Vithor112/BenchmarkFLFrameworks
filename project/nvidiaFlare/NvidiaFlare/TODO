@@ -1,2 +1,1 @@
-- [] Add FlaAdmin logic to automaticaly send a job to the server
-- [x] Add cadvisor and prometheus docker compose to start.sh scriptss
+- [] Fix Model Initialization in Job.py
