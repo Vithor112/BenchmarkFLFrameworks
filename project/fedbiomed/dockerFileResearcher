@@ -1,0 +1,14 @@
+FROM python:3.10.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libgomp1 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir fedbiomed[node,researcher]==6.2.0
+
+ENTRYPOINT ["python", "researcher.py"]
