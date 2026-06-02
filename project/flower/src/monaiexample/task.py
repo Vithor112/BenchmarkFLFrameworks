@@ -1,16 +1,15 @@
-"""monaiexample: A Flower / MONAI app."""
+""" MONAI app."""
 
+import logging
+import math
 import os
-import tarfile
-from collections import OrderedDict
-from urllib import request
+from collections import Counter, OrderedDict
 
 import monai
 import torch
 from datasets import Dataset
-from filelock import FileLock
-from flwr_datasets.partitioner import IidPartitioner
-from monai.networks.nets import densenet
+from flwr_datasets.partitioner import IidPartitioner, PathologicalPartitioner
+from monai.networks.nets import resnet10
 from monai.transforms import (
     Compose,
     EnsureChannelFirst,
@@ -23,10 +22,34 @@ from monai.transforms import (
 )
 
 
-def load_model():
-    """Load a DenseNet12."""
-    return densenet.DenseNet121(spatial_dims=2, in_channels=1, out_channels=6)
+logging.basicConfig(
+    level=logging.INFO,  
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
+
+logger = logging.getLogger(__name__)
+
+
+seed = 42
+
+def set_seed(seed_to_set):
+    """Set random seed for reproducibility."""
+    global seed
+    seed = seed_to_set
+    logger.info(f"Seed set to {seed}")
+
+
+def load_model():
+    """Load a resnet10."""
+    logger.info(f"Loading model with seed {seed}...")
+    torch.manual_seed(seed)
+    return resnet10(
+        spatial_dims=2,
+        n_input_channels=1,
+        num_classes=6,
+        feed_forward=False
+    )
 
 def get_params(model):
     """Return tensors in the model's state_dict."""
@@ -47,10 +70,9 @@ def train_func(model, train_loader, epoch_num, device):
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     running_loss = 0.0
     for _ in range(epoch_num):
-        print(f"Epoch {_+1}/{epoch_num}")
+        logger.info(f"Epoch {_+1}/{epoch_num}")
         model.train()
         for batch in train_loader:
-            print(f"Training on batch with {len(batch['img'])} examples.")
             images, labels = batch["img"], batch["label"]
             optimizer.zero_grad()
             loss = loss_function(model(images.to(device)), labels.to(device))
@@ -92,7 +114,7 @@ def _get_transforms():
             LoadImage(image_only=True),
             EnsureChannelFirst(),
             ScaleIntensity(),
-            RandRotate(range_x=15, prob=0.5, keep_size=True),
+            RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5, keep_size=True),
             ToTensor(),
@@ -120,54 +142,65 @@ def get_apply_transforms_fn(transforms_to_apply):
 ds = None
 partitioner = None
 
+global_label_map = {
+    'AbdomenCT': 0,
+    'BreastMRI': 1,
+    'ChestCT': 2,
+    'CXR': 3,
+    'Hand': 4,
+    'HeadCT': 5 
+}
 
 def load_data(num_partitions, partition_id, batch_size):
     """Download dataset, partition it and return data loader of specific partition."""
-    # Set dataset and partitioner only once
     global ds, partitioner
     if ds is None:
         image_file_list, image_label_list = _download_data()
 
-        # Construct HuggingFace dataset
         ds = Dataset.from_dict({"img_file": image_file_list, "label": image_label_list})
-        # Set partitioner
-        partitioner = IidPartitioner(num_partitions)
+        ds = ds.shuffle(seed=seed)
+
+        partitioner = PathologicalPartitioner(num_partitions=num_partitions,
+                                                partition_by="label",
+                                                num_classes_per_partition=3,
+                                                class_assignment_mode="first-deterministic", seed=seed
+                                            )
         partitioner.dataset = ds
 
     partition = partitioner.load_partition(partition_id)
 
-    # Split train/validation
-    partition_train_test = partition.train_test_split(test_size=0.2, seed=42)
+    label_counts = Counter(partition["label"])
+    class_distribution = {list(global_label_map.keys())[list(global_label_map.values()).index(label)] : count for label, count in label_counts.items()}
+    logger.info(f"Class distribution in partition {partition_id}: {class_distribution}")
 
-    # Get transforms
+    logger.info(f"Partition {partition_id} loaded with {len(partition)} examples. with seed {seed}...")
+    partition_train_test = partition.train_test_split(test_size=0.2, seed=seed)
+
     train_t, test_t = _get_transforms()
 
-    # Apply transforms individually to each split
     train_partition = partition_train_test["train"]
     test_partition = partition_train_test["test"]
 
     partition_train = train_partition.with_transform(get_apply_transforms_fn(train_t))
     partition_val = test_partition.with_transform(get_apply_transforms_fn(test_t))
 
-    # Create dataloaders
     train_loader = monai.data.DataLoader(
         partition_train, batch_size=batch_size, shuffle=True
     )
     val_loader = monai.data.DataLoader(partition_val, batch_size=batch_size)
-    print(f"Partition {partition_id} loaded with {len(train_loader.dataset)} training examples and {len(val_loader.dataset)} validation examples.")
+    logger.info(f"Partition {partition_id} loaded with {len(train_loader.dataset)} training examples and {len(val_loader.dataset)} validation examples.")
     return train_loader, val_loader
 
 
 def _download_data():
     """Download and extract dataset."""
-    print("Downloading data...")
-    data_dir = "./MedNIST/"
+    logger.info("Downloading data...")
+    data_dir = "./MedNIST"
 
-    # Compute list of files and thier associated labels
     class_names = sorted(
         [x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))]
     )
-    print(f"Class names: {class_names}")
+    logger.info(f"Class names: {class_names}")
     image_files = [
         [
             os.path.join(data_dir, class_name, x)
@@ -175,10 +208,14 @@ def _download_data():
         ]
         for class_name in class_names
     ]
+
+
     image_file_list = []
     image_label_list = []
-    for i, _ in enumerate(class_names):
+    for i, class_name in enumerate(class_names):
         image_file_list.extend(image_files[i])
-        image_label_list.extend([i] * len(image_files[i]))
-    print(f"Data downloaded and extracted to {data_dir}")
+        global_label = global_label_map[class_name]
+        image_label_list.extend([global_label] * len(image_files[i]))
+        logger.info(f"Found {len(image_files[i])} images for class '{class_name}' mapped to global label {global_label}")
+    logger.info(f"Data downloaded and extracted to {data_dir}")
     return image_file_list, image_label_list

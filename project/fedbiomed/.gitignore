@@ -1,0 +1,5 @@
+env/
+MedNIST/
+fbm-node*
+fbm-researcher*
+trained_model

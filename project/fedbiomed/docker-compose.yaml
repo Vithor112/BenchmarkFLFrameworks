@@ -11,6 +11,8 @@ services:
     depends_on:
     - cadvisor
     - dcgm_exporter
+    networks:
+      fbm-network:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
@@ -21,6 +23,8 @@ services:
     - /var/run:/var/run:rw
     - /sys:/sys:ro
     - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      fbm-network:
   dcgm_exporter:
     image: nvidia/dcgm-exporter:4.5.2-4.8.1-ubuntu22.04
     container_name: dcgm_exporter
@@ -34,3 +38,12 @@ services:
             count: all
             capabilities:
             - gpu
+    networks:
+      fbm-network:
+
+networks:
+  fbm-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

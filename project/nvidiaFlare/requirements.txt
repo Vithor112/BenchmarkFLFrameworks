@@ -1,0 +1,6 @@
+torch
+torchvision
+tensorboard
+flwr-datasets[vision]>=0.6.0
+monai==1.5.2
+prometheus_client==0.25.0

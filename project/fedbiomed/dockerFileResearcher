@@ -11,4 +11,6 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir fedbiomed[node,researcher]==6.2.0
 
+COPY ./MedNIST /app/MedNIST
+
 ENTRYPOINT ["python", "researcher.py"]

@@ -8,3 +8,7 @@ scrape_configs:
   scrape_interval: 5s
   static_configs:
     - targets: ['dcgm_exporter:9400']
+- job_name: 'flower_server'
+  scrape_interval: 5s
+  static_configs:
+    - targets: ['superexec-serverapp:18000']

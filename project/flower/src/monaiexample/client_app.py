@@ -1,34 +1,41 @@
 """monaiexample: A Flower / MONAI app."""
 
+import logging
+
 import torch
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 
-from monaiexample.task import load_data, load_model, test_func, train_func
+from monaiexample.task import set_seed, load_data, load_model, test_func, train_func
 
-# Flower ClientApp
 app = ClientApp()
 
+logging.basicConfig(
+    level=logging.INFO,  
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+logger = logging.getLogger(__name__)
 
 @app.train()
 def train(msg: Message, context: Context):
     """Train the model on local data."""
-
-    # Load the model and initialize it with received weights
+    seed = context.run_config["seed"]
+    set_seed(seed)
     model = load_model()
     model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(f"Torch CUDA version: {torch.version.cuda}")
-    print(f"Loaded model on device {device}.")
-    # Load the data
+    logger.info(f"Torch CUDA version: {torch.version.cuda}")
+    logger.info(f"Loaded model on device {device}.")
     partition_id = context.node_config["partition-id"]
     num_partitions = context.node_config["num-partitions"]
-    batch_size = context.run_config["batch-size"]
+    batch_size = context.run_config["batch_size"]
+    epochs = context.run_config["epochs"]
     trainloader, _ = load_data(num_partitions, partition_id, batch_size)
-    print(f"Starting training on partition {partition_id} with {len(trainloader.dataset)} examples.")
-    train_loss = train_func(model, trainloader, epoch_num=1, device=device)
-    print(f"Finished training on partition {partition_id} with average loss {train_loss:.4f}.")
-    # Construct and return the reply Message
+    logger.info(f"Starting training on partition {partition_id} with {len(trainloader.dataset)} examples.")
+    train_loss = train_func(model, trainloader, epoch_num=epochs, device=device)
+    logger.info(f"Finished training on partition {partition_id} with average loss {train_loss:.4f}.")
     model_record = ArrayRecord(model.state_dict())
     metrics = {"train_loss": train_loss, "num-examples": len(trainloader)}
     metric_record = MetricRecord(metrics)
@@ -40,25 +47,23 @@ def train(msg: Message, context: Context):
 def evaluate(msg: Message, context: Context):
     """Evaluate the model on local data."""
 
-    # Load the model and initialize it with the received weights
+    seed = context.run_config["seed"]
+    set_seed(seed)  
     model = load_model()
     model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    # Load the data
     partition_id = context.node_config["partition-id"]
     num_partitions = context.node_config["num-partitions"]
-    batch_size = context.run_config["batch-size"]
+    batch_size = context.run_config["batch_size"]
     _, valloader = load_data(num_partitions, partition_id, batch_size)
 
-    # Call the evaluation function
     eval_loss, eval_acc = test_func(
         model,
         valloader,
         device,
     )
 
-    # Construct and return reply Message
     metrics = {
         "eval_loss": eval_loss,
         "eval_acc": eval_acc,

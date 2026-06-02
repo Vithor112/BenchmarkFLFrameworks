@@ -1,129 +1,198 @@
+import argparse
+import math
 import os
+
 os.environ['FBM_RESEARCHER_COMPONENT_ROOT'] = './fbm-researcher'
 
-import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
-from fedbiomed.common.training_plans import TorchTrainingPlan
-from fedbiomed.common.datamanager import DataManager
-from torchvision import transforms
-from fedbiomed.common.dataset import MnistDataset
 
-# Here we define the training plan to be used.
-# You can use any class name (here 'MyTrainingPlan')
-class MyTrainingPlan(TorchTrainingPlan):
-    class Net(nn.Module):
-        def __init__(self, model_args):
-            super().__init__()
-            self.conv1 = nn.Conv2d(1, 32, 3, 1)
-            self.conv2 = nn.Conv2d(32, 64, 3, 1)
-            self.dropout1 = nn.Dropout(0.25)
-            self.dropout2 = nn.Dropout(0.5)
-            self.fc1 = nn.Linear(9216, 128)
-            self.fc2 = nn.Linear(128, 10)
-
-        def forward(self, x):
-            x = self.conv1(x)
-            x = F.relu(x)
-            x = self.conv2(x)
-            x = F.relu(x)
-            x = F.max_pool2d(x, 2)
-            x = self.dropout1(x)
-            x = torch.flatten(x, 1)
-            x = self.fc1(x)
-            x = F.relu(x)
-            x = self.dropout2(x)
-            x = self.fc2(x)
-            output = F.log_softmax(x, dim=1)
-            return output
-
-    def init_model(self, model_args):
-        return self.Net(model_args = model_args)
-
-    def init_optimizer(self, optimizer_args):
-        return Adam(self.model().parameters(), lr = optimizer_args["lr"])
-
-    def init_dependencies(self):
-        return ["from fedbiomed.common.dataset import MnistDataset",
-                "from torchvision import transforms",
-                "from torch.optim import Adam"]
-
-    def training_data(self):
-        transform = transforms.Normalize((0.1307,), (0.3081,))
-        dataset1 = MnistDataset(transform=transform)
-        loader_arguments = {'shuffle': True}
-        return DataManager(dataset1, **loader_arguments)
-
-    def training_step(self, data, target):
-        output = self.model().forward(data)
-        loss   = torch.nn.functional.nll_loss(output, target)
-        return loss
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-from torchvision import  transforms
+# MONAI import
+from monai.networks.nets import resnet10
 
 from fedbiomed.common.training_plans import TorchTrainingPlan
 from fedbiomed.common.datamanager import DataManager
-from fedbiomed.common.dataset import MnistDataset
-
 from fedbiomed.common.metrics import MetricTypes
-model_args = {}
-
-training_args = {
-    'loader_args': { 'batch_size': 1, }, 
-    'optimizer_args': {
-        "lr" : 1e-3
-    },
-    # 'test_ratio' : 0.25,
-    # 'test_batch_size': 64,
-    # 'test_metric': MetricTypes.F1_SCORE,
-    # 'test_on_global_updates': True,
-    # 'test_on_local_updates': True,
-    # 'test_metric_args': {'average': 'marco'},
-    'use_gpu': True,  # automatically falls back to cpu on nodes that don't support gpu
-    'epochs': 1, 
-    'dry_run': False,  
-    'batch_maxnum': 100 # Fast pass for development : only use ( batch_maxnum * batch_size ) samples
-}
-
-
 from fedbiomed.researcher.federated_workflows import Experiment
 from fedbiomed.researcher.aggregators.fedavg import FedAverage
+from fedbiomed.common.logger import logger
 
-tags =  ['#MNIST', '#dataset']
-rounds = 5
 
-exp = Experiment(tags=tags,
-                 model_args=model_args,
-                 training_plan_class=MyTrainingPlan,
-                 training_args=training_args,
-                 round_limit=rounds,
-                 aggregator=FedAverage(),
-                 node_selection_strategy=None)
+parser = argparse.ArgumentParser(description="Fedbiomed Client Training Script")
+parser.add_argument("--batch_size", type=int, default=32, help="Input batch size for training")
+parser.add_argument("--epochs", type=int, default=1, help="Input batch size for training")
+parser.add_argument("--num_of_rounds", type=int, default=2, help="Input batch size for training")
+parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+args = parser.parse_args()
+
+print(f"Successfully loaded arguments!")
+print(f"Batch Size: {args.batch_size}")
+print(f"Epochs: {args.epochs}")
+print(f"Number of Rounds: {args.num_of_rounds}")
+print(f"Seed: {args.seed}")
+
+class MyTrainingPlan(TorchTrainingPlan):
+
+    def init_model(self, model_args):
+        return resnet10(
+            spatial_dims=2,
+            n_input_channels=1,
+            num_classes=6,
+            feed_forward=False
+        )
+
+    def init_optimizer(self, optimizer_args):
+        return Adam(self.model().parameters(), lr=optimizer_args.get("lr", 1e-5))
+
+    def init_dependencies(self):
+        return [
+            "import os",
+            "import torch",
+            "import torch.nn.functional as F",
+            "from torch.utils.data import Dataset",
+            "from torch.optim import Adam",
+            "from monai.networks.nets import resnet10",
+            "from monai.transforms import Compose, EnsureChannelFirst, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor",
+            "from fedbiomed.common.datamanager import DataManager",
+            "from fedbiomed.common.logger import logger",
+            "import math"
+        ]
+
+    def training_data(self):
+        from torch.utils.data import Dataset
+        from monai.transforms import Compose, EnsureChannelFirst, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
+        import os
+
+        class MedNISTDataset(Dataset):
+            def __init__(self, data_dir, transform=None):
+                self.data_dir = data_dir
+                self.transform = transform
+
+                self.class_names = sorted(
+                    [x for x in os.listdir(data_dir)
+                     if os.path.isdir(os.path.join(data_dir, x)) and (not x.startswith('.') and not x.startswith('MedNIST'))]
+                )
+
+                valid_exts = ('.jpg', '.jpeg', '.png', '.bmp')
+                image_files = [
+                    [
+                        os.path.join(data_dir, class_name, x)
+                        for x in os.listdir(os.path.join(data_dir, class_name))
+                        if x.lower().endswith(valid_exts)
+                    ]
+                    for class_name in self.class_names
+                ]
+                
+                self.global_label_map = {
+                    'AbdomenCT': 0,
+                    'BreastMRI': 1,
+                    'ChestCT': 2,
+                    'CXR': 3,
+                    'Hand': 4,
+                    'HeadCT': 5 
+                }
+
+                self.image_file_list = []
+                self.image_label_list = []
+                for i, class_name in enumerate(self.class_names):
+                    self.image_file_list.extend(image_files[i])
+                    global_label = self.global_label_map[class_name]
+                    self.image_label_list.extend([global_label] * len(image_files[i]))
+                    logger.info(f"Found {len(image_files[i])} images for class '{class_name}' mapped to global label {global_label}")
+                logger.info(f"Loaded {len(self.image_file_list)} images from {data_dir}")
+
+            def __len__(self):
+                return len(self.image_file_list)
+
+            def __getitem__(self, idx):
+                img_path = self.image_file_list[idx]
+                label = self.image_label_list[idx]
+
+                if self.transform:
+                    try:
+                        img = self.transform(img_path)
+                    except RuntimeError as e:
+                        logger.error(f"Error occurred while transforming image {img_path}: {e}")
+                        raise e
+                else:
+                    img = img_path
+
+                return img, label
+
+        data_dir = getattr(self, 'dataset_path', "/app/MedNIST")
+
+        train_transforms = Compose([
+            LoadImage(image_only=True),
+            EnsureChannelFirst(),
+            ScaleIntensity(),
+            RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
+            RandFlip(spatial_axis=0, prob=0.5),
+            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5, keep_size=True),
+            ToTensor(),
+        ])
+        dataset = MedNISTDataset(data_dir=data_dir, transform=train_transforms)
+
+        loader_arguments = {'shuffle': True}
+        return DataManager(dataset, **loader_arguments)
+
+    def training_step(self, data, target):
+        output = self.model()(data)
+        loss = F.cross_entropy(output, target.long())
+        return loss
+    
+model_args = {}
+training_args = {
+    'loader_args': {'batch_size': args.batch_size},
+    'optimizer_args': {
+        "lr": 1e-5
+    },
+    'test_ratio': 0.2,
+    'test_batch_size': args.batch_size,
+    'test_metric': MetricTypes.ACCURACY,
+    'test_on_global_updates': True,
+    'use_gpu': True,
+    'epochs': args.epochs,
+    'dry_run': False,
+    'random_seed': args.seed
+}
+
+tags = ['#MEDNIST', '#dataset']
+rounds = args.num_of_rounds
+
+exp = Experiment(
+    tags=tags,
+    model_args=model_args,
+    training_plan_class=MyTrainingPlan,
+    training_args=training_args,
+    round_limit=rounds,
+    aggregator=FedAverage(),
+    node_selection_strategy=None
+)
 
 exp.run()
 exp.run_once(increase=True)
-try: 
+
+try:
     exp.training_plan().export_model('./trained_model')
 except Exception as e:
     print(e)
-    
+
 print("\nList the training rounds : ", exp.training_replies().keys())
 
 print("\nList the nodes for the last training round and their timings : ")
 round_data = exp.training_replies()[rounds - 1]
 for r in round_data.values():
-    print("\t- {id} :\
-    \n\t\trtime_training={rtraining:.2f} seconds\
-    \n\t\tptime_training={ptraining:.2f} seconds\
-    \n\t\trtime_total={rtotal:.2f} seconds".format(id = r['node_id'],
-        rtraining = r['timing']['rtime_training'],
-        ptraining = r['timing']['ptime_training'],
-        rtotal = r['timing']['rtime_total']))
+    print(
+        "\t- {id} :\n"
+        "\t\trtime_training={rtraining:.2f} seconds\n"
+        "\t\tptime_training={ptraining:.2f} seconds\n"
+        "\t\trtime_total={rtotal:.2f} seconds".format(
+            id=r['node_id'],
+            rtraining=r['timing']['rtime_training'],
+            ptraining=r['timing']['ptime_training'],
+            rtotal=r['timing']['rtime_total']
+        )
+    )
 print('\n')
 
 print("\nList the training rounds : ", exp.aggregated_params().keys())

@@ -10,5 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir fedbiomed==6.2.0
+    
+COPY ./MedNIST /app/MedNIST
 
 ENTRYPOINT ["fedbiomed", "node", "--path", "/app/fbm-node", "start", "--gpu-only", "--gpu-num", "0"]

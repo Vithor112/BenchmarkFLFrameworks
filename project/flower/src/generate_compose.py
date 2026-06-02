@@ -1,5 +1,6 @@
+import argparse
+
 import yaml
-import sys
 import subprocess
 
 
@@ -9,7 +10,7 @@ def is_port_in_use(port):
     return result.stdout != b''
 
 def generate_flower_compose(num_nodes):
-    total_partitions = 200
+    total_partitions = num_nodes
     start_port = 9094
     current_port = start_port
     compose_dict = {
@@ -36,12 +37,15 @@ def generate_flower_compose(num_nodes):
                 "ports": ["9090:9090"],
                 "command": ["--config.file=/etc/prometheus/prometheus.yml"],
                 "volumes": ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro"],
-                "depends_on": ["cadvisor", "dcgm_exporter"]
+                "depends_on": ["cadvisor", "dcgm_exporter"],
+                "networks": ["flwr-network"],
+
             },
             "cadvisor": {
                 "image": "gcr.io/cadvisor/cadvisor:latest",
                 "container_name": "cadvisor",
                 "ports": ["8080:8080"],
+                "networks": ["flwr-network"],
                 "volumes": [
                     "/:/rootfs:ro",
                     "/var/run:/var/run:rw",
@@ -53,6 +57,7 @@ def generate_flower_compose(num_nodes):
                 "image": "nvidia/dcgm-exporter:4.5.2-4.8.1-ubuntu22.04",
                 "container_name": "dcgm_exporter",
                 "cap_add": ["SYS_ADMIN"],
+                "networks": ["flwr-network"],
                 "deploy": {
                     "resources": {
                         "reservations": {
@@ -140,8 +145,9 @@ def generate_flower_compose(num_nodes):
     print(f"✅ Successfully generated docker-compose.yml with {num_nodes} nodes.")
 
 if __name__ == "__main__":
-    try:
-        n = int(sys.argv[1]) if len(sys.argv) > 1 else 2
-        generate_flower_compose(n)
-    except ValueError:
-        print("Error: Please provide an integer for the number of nodes.")
+    parser = argparse.ArgumentParser(description="NVFlare Client Training Script")
+    parser.add_argument("--num_of_clients", type=int, default=2, help="Input batch size for training")
+    args = parser.parse_args()
+    print(f"Successfully loaded arguments!")
+    print(f"Number of Clients: {args.num_of_clients}")
+    generate_flower_compose(args.num_of_clients)
