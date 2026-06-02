@@ -5,10 +5,10 @@ import time
 import csv
 import os
 import sys
+import re
 from datetime import datetime, timedelta, timezone
 import requests
 
-# --- Sudo Check ---
 if os.geteuid() != 0:
     print("ERROR: This script requires sudo privileges to capture hardware metrics.")
     print("Please run it again using 'sudo python3 script.py'.")
@@ -17,20 +17,24 @@ if os.geteuid() != 0:
 # --- Configuration ---
 PROMETHEUS_URL = "http://127.0.0.1:9090/api/v1/query"
 CSV_FILENAME = "run_metrics.csv"
-SCRAPE_BUFFER_SECONDS_FLOWER = 180  # Time to deduct for final metric scraping
-RUN_TIMEOUT_SECONDS = 10800          # 3 Hours Timeout
-NVFLARE_SERVER_CONTAINER_NAME = "server"  # Default NVFlare server container name
+SCRAPE_BUFFER_SECONDS_FLOWER = 180 
+RUN_TIMEOUT_SECONDS = 10800          # 3 Hours Timeout for each run to prevent infinite waiting in case of issues
 
 # Framework Scripts Configurations
 FLOWER_START_SCRIPT = "./flower/src/start.sh"
 FLOWER_STOP_SCRIPT = "./flower/src/stop.sh"
+
 NVFLARE_START_SCRIPT = "./nvidiaFlare/start.sh"
 NVFLARE_STOP_SCRIPT = "./nvidiaFlare/stop.sh"
+NVFLARE_SERVER_CONTAINER_NAME = "server"
+
+FEDBIOMED_START_SCRIPT = "./fedbiomed/start.sh"
+FEDBIOMED_STOP_SCRIPT = "./fedbiomed/stop.sh"
+FEDBIOMED_SERVER_CONTAINER_NAME = "fbm-researcher"
 
 def is_nvflare_server_stopped():
     """Checks if the NVFlare server container has exited or logged the 'MPM: Good Bye!' shutdown signal."""
     try:
-        # 1. Check if the container is physically stopped/exited
         status_output = subprocess.check_output(
             ['docker', 'inspect', '-f', '{{.State.Running}}', NVFLARE_SERVER_CONTAINER_NAME],
             stderr=subprocess.STDOUT,
@@ -40,7 +44,6 @@ def is_nvflare_server_stopped():
         if status_output == "false":
             return True
             
-        # 2. If it is still running, check the tail of the logs for the graceful shutdown string
         logs = subprocess.check_output(
             ['docker', 'logs', '--tail', '500', NVFLARE_SERVER_CONTAINER_NAME], 
             stderr=subprocess.STDOUT, 
@@ -48,7 +51,6 @@ def is_nvflare_server_stopped():
         )
         return "MPM: Good Bye!" in logs
     except Exception:
-        # If the container doesn't exist or docker inspect fails, assume it's stopped/removed
         return True
 
 def get_flower_run_stats():
@@ -58,7 +60,7 @@ def get_flower_run_stats():
     
     while True:
         if time.time() - start_wait > RUN_TIMEOUT_SECONDS:
-            raise TimeoutError("Flower run exceeded the 2-hour timeout limit.")
+            raise TimeoutError("Flower run exceeded the 3-hour timeout limit.")
             
         try:
             output = subprocess.check_output(
@@ -87,7 +89,7 @@ def poll_nvflare_status(num_clients, target_rounds, start_time_dt):
 
     while True:
         if time.time() - start_wait > RUN_TIMEOUT_SECONDS:
-            raise TimeoutError("NvidiaFlare run exceeded the 2-hour timeout limit.")
+            raise TimeoutError("NvidiaFlare run exceeded the 3-hour timeout limit.")
             
         try:
             query = "nvflare_client_accuracy"
@@ -103,7 +105,6 @@ def poll_nvflare_status(num_clients, target_rounds, start_time_dt):
                 instance_count = int(labels.get('instance_count', 0))
                 ts_str = labels.get('timestamp')
 
-                # Only evaluate timestamps recorded AFTER the run was initiated
                 if ts_str:
                     safe_ts = ts_str.replace("Z", "+00:00")
                     metric_dt = datetime.fromisoformat(safe_ts).astimezone(timezone.utc)
@@ -118,12 +119,10 @@ def poll_nvflare_status(num_clients, target_rounds, start_time_dt):
                             'client': labels.get('client_name')
                         })
 
-            # Check if all clients have reported data for the target final round
             if target_rounds in round_data:
                 clients_in_last_round = {c['client'] for c in round_data[target_rounds] if c['client']}
                 
                 if len(clients_in_last_round) >= num_clients or len(round_data[target_rounds]) >= num_clients:
-                    # Calculate weighted averages per round using instance_count
                     for r, clients_data in round_data.items():
                         total_instances = sum(c['instance_count'] for c in clients_data)
                         if total_instances > 0:
@@ -132,16 +131,13 @@ def poll_nvflare_status(num_clients, target_rounds, start_time_dt):
                             weighted_acc = 0.0
                         accuracies[f"Round {r}"] = round(weighted_acc, 4)
 
-                    # Calculate precise end time based on the highest timestamp recorded in the final round
                     final_timestamps = [c['timestamp'] for c in round_data[target_rounds]]
                     max_ts_str = max(final_timestamps)
                     end_time_dt = datetime.fromisoformat(max_ts_str).astimezone(timezone.utc) - timedelta(hours=3)
                     break
         except Exception as e:
             print(f"Error querying Prometheus for NVFlare accuracy metrics: {e}")
-            # Do not raise here so it continues to poll during the grace period if a temporary connection issue occurs
 
-        # Check for early server shutdown logic or expected completion log
         if not shutdown_detected_time and is_nvflare_server_stopped():
             print("\nNVFlare server container stopped or 'MPM: Good Bye!' shutdown detected. Waiting up to 1 minute for final Prometheus scrape...")
             shutdown_detected_time = time.time()
@@ -151,7 +147,6 @@ def poll_nvflare_status(num_clients, target_rounds, start_time_dt):
 
         time.sleep(10)
 
-    # Reconstruct the expected dict structure
     run_stats = {
         "starting-at": start_time_dt.strftime("%Y-%m-%d %H:%M:%SZ"),
         "finished-at": end_time_dt.strftime("%Y-%m-%d %H:%M:%SZ"),
@@ -159,6 +154,109 @@ def poll_nvflare_status(num_clients, target_rounds, start_time_dt):
         "end_dt": end_time_dt
     }
     return run_stats, accuracies
+
+def clean_ansi(text):
+    """Removes ANSI escape sequences (colors, etc.) from a string."""
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
+
+def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
+    """Polls FedBioMed logs to extract accuracies at 100% iteration and detects run completion."""
+    print(f"Waiting for FedBioMed run to finish ({target_rounds} rounds, {num_clients} clients)...")
+    start_wait = time.time()
+    end_time_dt = None
+    accuracies_per_round = {}
+    
+    round_data = {}
+    
+    processed_blocks_count = 0 
+    while True:
+        if time.time() - start_wait > RUN_TIMEOUT_SECONDS:
+            raise TimeoutError("FedBioMed run exceeded the 3-hour timeout limit.")
+            
+        try:
+            raw_logs = subprocess.check_output(
+                ['docker', 'logs', FEDBIOMED_SERVER_CONTAINER_NAME],
+                stderr=subprocess.STDOUT, text=True
+            )
+            
+            logs = clean_ansi(raw_logs)
+            blocks = logs.split("VALIDATION ON GLOBAL UPDATES")
+            
+            new_blocks = blocks[1:][processed_blocks_count:]
+            
+            if new_blocks:
+                print(f"\n[FEDBIOMED PARSER] Found {len(new_blocks)} new validation block(s). Analyzing...")
+            
+            for i, block in enumerate(new_blocks):
+                current_block_idx = processed_blocks_count + i + 1
+                
+                node_match = re.search(r"NODE_ID.*?NODE_([a-fA-F0-9\-]+)", block)
+                round_match = re.search(r"Round\s+(\d+)", block)
+                pct_match = re.search(r"\((\d+)%\)", block)
+                acc_match = re.search(r"ACCURACY.*?([0-9]+\.[0-9]+)", block)
+                
+                if node_match and round_match and pct_match and acc_match:
+                    node_id = f"NODE_{node_match.group(1).strip()}"
+                    r = int(round_match.group(1))
+                    pct = int(pct_match.group(1))
+                    acc = float(acc_match.group(1))
+                    
+                    print(f"  -> [Block {current_block_idx}] MATCHED: Node: {node_id[-8:]}.. | Round: {r} | Progress: {pct}% | Acc: {acc}")
+                    r -= 1
+                    if pct == 100 and r >= 1:
+                        if r not in round_data:
+                            round_data[r] = {}
+                        round_data[r][node_id] = acc
+                        print(f"     [!] 100% REACHED. Saving Accuracy {acc} for round {r}.")
+                    else:
+                        print(f"     [-] Progress is {pct}% and round is {r}. Skipping save.")
+                else:
+                    print(f"  -> [Block {current_block_idx}] WARNING: Regex match failed. Incomplete log block.")
+                    if "Round" in block or "ACCURACY" in block:
+                         print(f"      [DEBUG FAIL] Block Content Snippet: {block[:200].replace(chr(10), ' ')}...")
+
+            processed_blocks_count += len(new_blocks)
+
+            if target_rounds in round_data and len(round_data[target_rounds]) >= num_clients:
+                print(f"\n[FEDBIOMED PARSER] SUCCESS: All {num_clients} clients reached 100% in target Round {target_rounds}.")
+                end_time_dt = datetime.now(timezone.utc)
+                break
+                
+            status_output = subprocess.check_output(
+                ['docker', 'inspect', '-f', '{{.State.Running}}', FEDBIOMED_SERVER_CONTAINER_NAME],
+                stderr=subprocess.STDOUT, text=True
+            ).strip()
+            
+            if status_output == "false":
+                print(f"\n[FEDBIOMED PARSER] FALLBACK: fbm-researcher container has stopped running.")
+                end_time_dt = datetime.now(timezone.utc)
+                break
+                
+        except subprocess.CalledProcessError:
+            pass 
+        except Exception as e:
+            print(f"[FEDBIOMED PARSER ERROR] {e}")
+            
+        time.sleep(10)
+
+        
+    for r, nodes_dict in round_data.items():
+        if len(nodes_dict) > 0:
+            avg_acc = sum(nodes_dict.values()) / len(nodes_dict)
+            accuracies_per_round[f"Round {r}"] = round(avg_acc, 6)
+            
+    if not end_time_dt:
+        end_time_dt = datetime.now(timezone.utc)
+        
+    run_stats = {
+        "starting-at": start_time_dt.strftime("%Y-%m-%d %H:%M:%SZ"),
+        "finished-at": end_time_dt.strftime("%Y-%m-%d %H:%M:%SZ"),
+        "start_dt": start_time_dt,
+        "end_dt": end_time_dt
+    }
+    
+    return run_stats, accuracies_per_round
 
 def query_prometheus(query, target_timestamp):
     """Executes a PromQL instant query."""
@@ -280,6 +378,7 @@ def collect_and_save_run(framework, cfg, iteration, seed):
     start_dt_local = datetime.now(timezone.utc)
     num_clients = cfg['clients']
     target_rounds = cfg['rounds']
+    print(f"\n=== Starting Run: Framework={framework.upper()} | Clients={num_clients} | Rounds={target_rounds} | Epochs={cfg['epochs']} | Batch Size={cfg['batch_size']} | Seed={seed} ===")
 
     file_needs_header = not os.path.exists(CSV_FILENAME) or os.path.getsize(CSV_FILENAME) == 0
     fieldnames = [
@@ -346,12 +445,25 @@ def collect_and_save_run(framework, cfg, iteration, seed):
             
             start_dt = run_data["start_dt"]
             end_dt = run_data["end_dt"]
-            server_regex = "server"
+            server_regex = NVFLARE_SERVER_CONTAINER_NAME
             
             def get_client_regex(cid):
                 return f"site-{cid}"
+                
+        elif framework == "fedbiomed":
+            run_data, accuracies = poll_fedbiomed_status(num_clients, target_rounds, start_dt_local)
+            start_str = run_data["starting-at"]
+            end_str = run_data["finished-at"]
+            
+            start_dt = run_data["start_dt"]
+            end_dt = run_data["end_dt"]
+            server_regex = FEDBIOMED_SERVER_CONTAINER_NAME
+            
+            def get_client_regex(cid):
+                return f"fbm-node-{cid}"
 
         total_duration_s = max(int((end_dt - start_dt).total_seconds()), 1)
+        
         if framework == "flower":
             adjusted_window_s = max(total_duration_s - SCRAPE_BUFFER_SECONDS_FLOWER, 1)
             adjusted_end_timestamp = end_dt.timestamp() - SCRAPE_BUFFER_SECONDS_FLOWER
@@ -417,7 +529,7 @@ def collect_and_save_run(framework, cfg, iteration, seed):
         print(f"Error fallback registered in {CSV_FILENAME}\n" + "-"*50)
 
 def main():
-    frameworks = ["flower", "nvidiaFlare"]
+    frameworks = ["fedbiomed", "nvidiaFlare", "flower"]
     configs = generate_experiment_matrix()
     seeds = [42, 69, 420]
     
@@ -462,6 +574,10 @@ def main():
         elif framework == "nvidiaFlare":
             start_script = NVFLARE_START_SCRIPT
             stop_script = NVFLARE_STOP_SCRIPT
+        elif framework == "fedbiomed":
+            start_script = FEDBIOMED_START_SCRIPT
+            stop_script = FEDBIOMED_STOP_SCRIPT
+            rounds += 1 # adding one because validation phase starts in the beggining of the round
         
         start_cmd = [
             start_script,
