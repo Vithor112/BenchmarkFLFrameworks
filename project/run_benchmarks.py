@@ -433,10 +433,10 @@ def collect_and_save_run(framework, cfg, iteration, seed):
             end_dt = datetime.strptime(end_str, "%Y-%m-%d %H:%M:%SZ").replace(tzinfo=timezone.utc)
             
             accuracies = query_flower_accuracies(end_dt.timestamp())
-            server_regex = "superlink|superexec-serverapp"
+            server_regex = "superlink"
             
             def get_client_regex(cid):
-                return f"supernode-{cid}|superexec-clientapp-{cid}"
+                return f"supernode-{cid}"
 
         elif framework == "nvidiaFlare":
             run_data, accuracies = poll_nvflare_status(num_clients, target_rounds, start_dt_local)

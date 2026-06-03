@@ -16,20 +16,11 @@ def generate_flower_compose(num_nodes):
     compose_dict = {
         "services": {
             "superlink": {
-                "image": "flwr/superlink:1.28.0",
+                "build": {"context": ".", "dockerfile": "superlink.Dockerfile"},
                 "container_name": "superlink",
                 "ports": ["9091:9091", "9092:9092", "9093:9093"],
-                "command": ["--insecure", "--isolation", "process"],
+                "command": ["--insecure"],
                 "networks": ["flwr-network"]
-            },
-            "superexec-serverapp": {
-                "build": {"context": ".", "dockerfile": "superexec.Dockerfile"},
-                "image": "flwr_superexec:0.0.1",
-                "container_name": "superexec-serverapp",
-                "depends_on": ["superlink"],
-                "command": ["--insecure", "--plugin-type", "serverapp", "--appio-api-address", "superlink:9091"],
-                "networks": ["flwr-network"],
-                "environment": ["FLWR_LOG_LEVEL=DEBUG"]
             },
             "prometheus": {
                 "image": "prom/prometheus:latest",
@@ -91,10 +82,9 @@ def generate_flower_compose(num_nodes):
         nodes_created += 1
         partition_id = nodes_created - 1
         node_name = f"supernode-{nodes_created}"
-        client_name = f"superexec-clientapp-{nodes_created}"
 
         compose_dict["services"][node_name] = {
-            "image": "flwr/supernode:1.28.0",
+            "build": {"context": ".", "dockerfile": "supernode.Dockerfile"},
             "container_name": node_name,
             "ports": [f"{current_port}:{current_port}"],
             "depends_on": ["superlink"],
@@ -102,22 +92,7 @@ def generate_flower_compose(num_nodes):
                 "--insecure",
                 "--superlink", "superlink:9092",
                 "--node-config", f"partition-id={partition_id} num-partitions={total_partitions}",
-                "--clientappio-api-address", f"0.0.0.0:{current_port}",
-                "--isolation", "process"
-            ],
-            "networks": ["flwr-network"],
-            "environment": ["FLWR_LOG_LEVEL=DEBUG"]
-        }
-
-        compose_dict["services"][client_name] = {
-            "build": {"context": ".", "dockerfile": "superexec.Dockerfile"},
-            "image": "flwr_superexec:0.0.1",
-            "container_name": client_name,
-            "depends_on": [node_name],
-            "command": [
-                "--insecure",
-                "--plugin-type", "clientapp",
-                "--appio-api-address", f"{node_name}:{current_port}"
+                "--clientappio-api-address", f"0.0.0.0:{current_port}"
             ],
             "networks": ["flwr-network"],
             "volumes": ["./MedNIST:/app/MedNIST"],
