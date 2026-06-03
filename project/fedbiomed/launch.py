@@ -14,7 +14,14 @@ from flwr_datasets.partitioner import PathologicalPartitioner
 script_path = Path(__file__).resolve()
 RESEARCHER_IP = "172.25.0.10"
 NETWORK_NAME = "fedbiomed_fbm-network"
-
+global_label_map = {
+    'AbdomenCT': 0,
+    'BreastMRI': 1,
+    'ChestCT': 2,
+    'CXR': 3,
+    'Hand': 4,
+    'HeadCT': 5 
+}
 def _download_data():
     """Download and extract dataset."""
     print("Downloading data...")
@@ -32,9 +39,9 @@ def _download_data():
     ]
     image_file_list = []
     image_label_list = []
-    for i, _ in enumerate(class_names):
+    for i, class_name in enumerate(class_names):
         image_file_list.extend(image_files[i])
-        image_label_list.extend([i] * len(image_files[i]))
+        image_label_list.extend([global_label_map.get(class_name, i)] * len(image_files[i]))
     print(f"Data downloaded and extracted to {data_dir}")
     return image_file_list, image_label_list
 

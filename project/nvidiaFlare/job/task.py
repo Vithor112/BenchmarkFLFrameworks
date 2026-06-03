@@ -32,12 +32,11 @@ def set_seed(seed_to_set):
 def load_model():
     """Load a resnet10."""
     print(f"Initializing model with seed {seed}.")
-    torch.manual_seed(seed)
+    monai.utils.set_determinism(seed=seed)
     return resnet10(
         spatial_dims=2,
         n_input_channels=1,
-        num_classes=6,
-        feed_forward=False
+        num_classes=6
     )
 
 def get_params(model):

@@ -331,13 +331,13 @@ def generate_experiment_matrix():
     """Generates the unique set of configuration definitions to test."""
     configs = []
 
-    for c in [2, 3, 5, 7, 10]:
+    for c in [2, 3, 5, 7]:
         configs.append({'clients': c, 'rounds': 3, 'epochs': 2, 'batch_size': 32})
     for r in [3, 5, 7]:
         configs.append({'clients': 3, 'rounds': r, 'epochs': 2, 'batch_size': 64})     
     for b in [64, 128]:
         configs.append({'clients': 3, 'rounds': 3, 'epochs': 1, 'batch_size': b})
-
+    configs.append({'clients': 10, 'rounds': 3, 'epochs': 2, 'batch_size': 16})
     unique_configs = []
     seen = set()
     for cfg in configs:

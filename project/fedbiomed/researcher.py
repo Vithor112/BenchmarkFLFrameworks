@@ -2,8 +2,11 @@ import argparse
 import math
 import os
 
+import torch
+
 os.environ['FBM_RESEARCHER_COMPONENT_ROOT'] = './fbm-researcher'
 
+import monai
 import torch.nn.functional as F
 from torch.optim import Adam
 
@@ -16,7 +19,7 @@ from fedbiomed.common.metrics import MetricTypes
 from fedbiomed.researcher.federated_workflows import Experiment
 from fedbiomed.researcher.aggregators.fedavg import FedAverage
 from fedbiomed.common.logger import logger
-
+from monai.transforms import Compose, EnsureChannelFirst, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 
 parser = argparse.ArgumentParser(description="Fedbiomed Client Training Script")
 parser.add_argument("--batch_size", type=int, default=32, help="Input batch size for training")
@@ -34,11 +37,11 @@ print(f"Seed: {args.seed}")
 class MyTrainingPlan(TorchTrainingPlan):
 
     def init_model(self, model_args):
+        monai.utils.set_determinism(seed=model_args.get('seed'))
         return resnet10(
             spatial_dims=2,
             n_input_channels=1,
-            num_classes=6,
-            feed_forward=False
+            num_classes=6
         )
 
     def init_optimizer(self, optimizer_args):
@@ -46,6 +49,7 @@ class MyTrainingPlan(TorchTrainingPlan):
 
     def init_dependencies(self):
         return [
+            "import monai",
             "import os",
             "import torch",
             "import torch.nn.functional as F",
@@ -124,23 +128,34 @@ class MyTrainingPlan(TorchTrainingPlan):
         train_transforms = Compose([
             LoadImage(image_only=True),
             EnsureChannelFirst(),
-            ScaleIntensity(),
-            RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
-            RandFlip(spatial_axis=0, prob=0.5),
-            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5, keep_size=True),
-            ToTensor(),
+            ScaleIntensity()
         ])
         dataset = MedNISTDataset(data_dir=data_dir, transform=train_transforms)
 
         loader_arguments = {'shuffle': True}
         return DataManager(dataset, **loader_arguments)
-
+    def testing_step(self, data, target):
+        transform = ToTensor()
+        data = transform(data)
+        out = self.model()(data)
+        pred = out.argmax(dim=1)
+        acc = torch.sum(pred == target)
+        accuracy = acc / len(target)
+        return {'ACCURACY': accuracy}
     def training_step(self, data, target):
+        train_transforms =Compose([RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
+            RandFlip(spatial_axis=0, prob=0.5),
+            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5, keep_size=True),
+            ToTensor()
+        ])
+        data = train_transforms(data)
         output = self.model()(data)
         loss = F.cross_entropy(output, target.long())
         return loss
     
-model_args = {}
+model_args = {
+    'seed' : args.seed
+}
 training_args = {
     'loader_args': {'batch_size': args.batch_size},
     'optimizer_args': {
@@ -170,7 +185,6 @@ exp = Experiment(
 )
 
 exp.run()
-exp.run_once(increase=True)
 
 try:
     exp.training_plan().export_model('./trained_model')
