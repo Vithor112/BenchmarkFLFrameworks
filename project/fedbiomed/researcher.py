@@ -144,12 +144,16 @@ class MyTrainingPlan(TorchTrainingPlan):
         logger.info(f"Accuracy  {accuracy:.4f} and samples {len(target)}")
         return {'ACCURACY': accuracy}
     def training_step(self, data, target):
-        train_transforms =Compose([RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
-            RandFlip(spatial_axis=0, prob=0.5),
-            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5, keep_size=True),
-            ToTensor()
-        ])
-        data = train_transforms(data)
+        if not hasattr(self, 'train_aug_transforms'):
+            self.train_aug_transforms = Compose([
+                RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
+                RandFlip(spatial_axis=0, prob=0.5),
+                RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5, keep_size=True),
+                ToTensor()
+            ])
+
+        augmented_samples = [self.train_aug_transforms(sample) for sample in data]
+        data = torch.stack(augmented_samples)        
         output = self.model()(data)
         loss = F.cross_entropy(output, target.long())
         return loss
