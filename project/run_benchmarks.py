@@ -161,7 +161,7 @@ def clean_ansi(text):
     return ansi_escape.sub('', text)
 
 def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
-    """Polls FedBioMed logs to extract accuracies at 100% iteration and detects run completion."""
+    """Polls FedBioMed node logs to extract accuracies and sample counts, calculating weighted average."""
     print(f"Waiting for FedBioMed run to finish ({target_rounds} rounds, {num_clients} clients)...")
     start_wait = time.time()
     end_time_dt = None
@@ -169,57 +169,54 @@ def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
     
     round_data = {}
     
-    processed_blocks_count = 0 
+    processed_lines_per_node = {f"fbm-node-{i+1}": 0 for i in range(num_clients)}
+    
     while True:
         if time.time() - start_wait > RUN_TIMEOUT_SECONDS:
             raise TimeoutError("FedBioMed run exceeded the 3-hour timeout limit.")
             
         try:
-            raw_logs = subprocess.check_output(
+            researcher_logs = subprocess.check_output(
                 ['docker', 'logs', FEDBIOMED_SERVER_CONTAINER_NAME],
                 stderr=subprocess.STDOUT, text=True
             )
+            clean_res_logs = clean_ansi(researcher_logs)
             
-            logs = clean_ansi(raw_logs)
-            blocks = logs.split("VALIDATION ON GLOBAL UPDATES")
-            
-            new_blocks = blocks[1:][processed_blocks_count:]
-            
-            if new_blocks:
-                print(f"\n[FEDBIOMED PARSER] Found {len(new_blocks)} new validation block(s). Analyzing...")
-            
-            for i, block in enumerate(new_blocks):
-                current_block_idx = processed_blocks_count + i + 1
-                
-                node_match = re.search(r"NODE_ID.*?NODE_([a-fA-F0-9\-]+)", block)
-                round_match = re.search(r"Round\s+(\d+)", block)
-                pct_match = re.search(r"\((\d+)%\)", block)
-                acc_match = re.search(r"ACCURACY.*?([0-9]+\.[0-9]+)", block)
-                
-                if node_match and round_match and pct_match and acc_match:
-                    node_id = f"NODE_{node_match.group(1).strip()}"
-                    r = int(round_match.group(1))
-                    pct = int(pct_match.group(1))
-                    acc = float(acc_match.group(1))
+            round_markers = re.findall(r"Round\s+(\d+)", clean_res_logs)
+            current_researcher_round = int(round_markers[-1]) if round_markers else 1
+            print(f"\n[FEDBIOMED PARSER] Current Researcher Round: {current_researcher_round}")
+            for i in range(num_clients):
+                node_name = f"fbm-node-{i+1}"
+                try:
+                    node_logs = subprocess.check_output(
+                        ['docker', 'logs', node_name],
+                        stderr=subprocess.STDOUT, text=True
+                    )
+                    clean_node_logs = clean_ansi(node_logs)
+                    lines = clean_node_logs.strip().split("\n")
                     
-                    print(f"  -> [Block {current_block_idx}] MATCHED: Node: {node_id[-8:]}.. | Round: {r} | Progress: {pct}% | Acc: {acc}")
-                    r -= 1
-                    if pct == 100 and r >= 1:
-                        if r not in round_data:
-                            round_data[r] = {}
-                        round_data[r][node_id] = acc
-                        print(f"     [!] 100% REACHED. Saving Accuracy {acc} for round {r}.")
-                    else:
-                        print(f"     [-] Progress is {pct}% and round is {r}. Skipping save.")
-                else:
-                    print(f"  -> [Block {current_block_idx}] WARNING: Regex match failed. Incomplete log block.")
-                    if "Round" in block or "ACCURACY" in block:
-                         print(f"      [DEBUG FAIL] Block Content Snippet: {block[:200].replace(chr(10), ' ')}...")
+                    new_lines = lines[processed_lines_per_node[node_name]:]
+                    for line in new_lines:
+                        acc_sample_match = re.search(r"Accuracy\s+([0-9]+\.[0-9]+)\s+and\s+samples\s+(\d+)", line)
+                        if acc_sample_match:
+                            acc = float(acc_sample_match.group(1))
+                            samples = int(acc_sample_match.group(2))
+                            
+                            r = current_researcher_round
+                            
+                            if r > 1: # Skip untrained model evaluation
+                                if r not in round_data:
+                                    round_data[r] = {}
+                                round_data[r][node_name] = {'acc': acc, 'samples': samples}
+                                print(f"  -> [{node_name}] Round {r}: Acc {acc}, Samples {samples}")
 
-            processed_blocks_count += len(new_blocks)
+                    processed_lines_per_node[node_name] = len(lines)
+                except subprocess.CalledProcessError:
+                    continue
 
-            if target_rounds in round_data and len(round_data[target_rounds]) >= num_clients:
-                print(f"\n[FEDBIOMED PARSER] SUCCESS: All {num_clients} clients reached 100% in target Round {target_rounds}.")
+            final_round_idx = target_rounds + 1
+            if final_round_idx in round_data and len(round_data[final_round_idx]) >= num_clients:
+                print(f"\n[FEDBIOMED PARSER] SUCCESS: All {num_clients} nodes reached final evaluation Round {final_round_idx}.")
                 end_time_dt = datetime.now(timezone.utc)
                 break
                 
@@ -229,22 +226,20 @@ def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
             ).strip()
             
             if status_output == "false":
-                print(f"\n[FEDBIOMED PARSER] FALLBACK: fbm-researcher container has stopped running.")
+                print(f"\n[FEDBIOMED PARSER] Researcher container stopped.")
                 end_time_dt = datetime.now(timezone.utc)
                 break
                 
-        except subprocess.CalledProcessError:
-            pass 
         except Exception as e:
             print(f"[FEDBIOMED PARSER ERROR] {e}")
             
         time.sleep(10)
 
-        
     for r, nodes_dict in round_data.items():
         if len(nodes_dict) > 0:
-            avg_acc = sum(nodes_dict.values()) / len(nodes_dict)
-            accuracies_per_round[f"Round {r}"] = round(avg_acc, 6)
+            total_samples = sum(d['samples'] for d in nodes_dict.values())
+            weighted_acc = sum(d['acc'] * d['samples'] for d in nodes_dict.values()) / total_samples
+            accuracies_per_round[f"Round {r-1}"] = round(weighted_acc, 6)
             
     if not end_time_dt:
         end_time_dt = datetime.now(timezone.utc)

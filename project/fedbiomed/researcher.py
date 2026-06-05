@@ -141,6 +141,7 @@ class MyTrainingPlan(TorchTrainingPlan):
         pred = out.argmax(dim=1)
         acc = torch.sum(pred == target)
         accuracy = acc / len(target)
+        logger.info(f"Accuracy  {accuracy:.4f} and samples {len(target)}")
         return {'ACCURACY': accuracy}
     def training_step(self, data, target):
         train_transforms =Compose([RandRotate(range_x=math.pi/12, prob=0.5, keep_size=True),
