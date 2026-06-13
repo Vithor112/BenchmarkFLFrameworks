@@ -7,6 +7,7 @@ import os
 import sys
 import re
 from datetime import datetime, timedelta, timezone
+from pyparsing import line
 import requests
 
 if os.geteuid() != 0:
@@ -170,21 +171,13 @@ def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
     round_data = {}
     
     processed_lines_per_node = {f"fbm-node-{i+1}": 0 for i in range(num_clients)}
-    
+    round_of_each_node = {f"fbm-node-{i+1}": 0 for i in range(num_clients)}
     while True:
         if time.time() - start_wait > RUN_TIMEOUT_SECONDS:
             raise TimeoutError("FedBioMed run exceeded the 3-hour timeout limit.")
-            
+
+     
         try:
-            researcher_logs = subprocess.check_output(
-                ['docker', 'logs', FEDBIOMED_SERVER_CONTAINER_NAME],
-                stderr=subprocess.STDOUT, text=True
-            )
-            clean_res_logs = clean_ansi(researcher_logs)
-            
-            round_markers = re.findall(r"Round\s+(\d+)", clean_res_logs)
-            current_researcher_round = int(round_markers[-1]) if round_markers else 1
-            print(f"\n[FEDBIOMED PARSER] Current Researcher Round: {current_researcher_round}")
             for i in range(num_clients):
                 node_name = f"fbm-node-{i+1}"
                 try:
@@ -197,25 +190,28 @@ def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
                     
                     new_lines = lines[processed_lines_per_node[node_name]:]
                     for line in new_lines:
+                        start_of_training_round = re.search(r"Train Epoch: 1 \| Iteration 1/\d+", line)        
                         acc_sample_match = re.search(r"Accuracy\s+([0-9]+\.[0-9]+)\s+and\s+samples\s+(\d+)", line)
+                        if start_of_training_round:
+                            round_of_each_node[node_name] += 1
+                            print(f"  -> [{node_name}] Detected start of training for Round {round_of_each_node[node_name]}.")
+    
                         if acc_sample_match:
                             acc = float(acc_sample_match.group(1))
                             samples = int(acc_sample_match.group(2))
                             
-                            r = current_researcher_round
-                            
-                            if r > 1: # Skip untrained model evaluation
+                            r = round_of_each_node[node_name]
+                            if r > 0: # Skip untrained model evaluation
                                 if r not in round_data:
-                                    round_data[r] = {}
-                                round_data[r][node_name] = {'acc': acc, 'samples': samples}
-                                print(f"  -> [{node_name}] Round {r}: Acc {acc}, Samples {samples}")
+                                    round_data[r] = []
+                                round_data[r].append({'acc': acc, 'samples': samples})
 
                     processed_lines_per_node[node_name] = len(lines)
                 except subprocess.CalledProcessError:
                     continue
 
             final_round_idx = target_rounds + 1
-            if final_round_idx in round_data and len(round_data[final_round_idx]) >= num_clients:
+            if all(round_of_each_node[node_name] >= final_round_idx for node_name in round_of_each_node):
                 print(f"\n[FEDBIOMED PARSER] SUCCESS: All {num_clients} nodes reached final evaluation Round {final_round_idx}.")
                 end_time_dt = datetime.now(timezone.utc)
                 break
@@ -235,11 +231,11 @@ def poll_fedbiomed_status(num_clients, target_rounds, start_time_dt):
             
         time.sleep(10)
 
-    for r, nodes_dict in round_data.items():
-        if len(nodes_dict) > 0:
-            total_samples = sum(d['samples'] for d in nodes_dict.values())
-            weighted_acc = sum(d['acc'] * d['samples'] for d in nodes_dict.values()) / total_samples
-            accuracies_per_round[f"Round {r-1}"] = round(weighted_acc, 6)
+    for r, accs in round_data.items():
+        if len(accs) > 0:
+            total_samples = sum(d['samples'] for d in accs)
+            weighted_acc = sum(d['acc'] * d['samples'] for d in accs) / total_samples
+            accuracies_per_round[f"Round {r}"] = round(weighted_acc, 6)
             
     if not end_time_dt:
         end_time_dt = datetime.now(timezone.utc)
@@ -329,9 +325,9 @@ def generate_experiment_matrix():
     for c in [2, 3, 5, 7]:
         configs.append({'clients': c, 'rounds': 3, 'epochs': 2, 'batch_size': 32})
     for r in [3, 5, 7]:
-        configs.append({'clients': 3, 'rounds': r, 'epochs': 2, 'batch_size': 64})     
+        configs.append({'clients': 3, 'rounds': r, 'epochs': 2, 'batch_size': 32})     
     for b in [64, 128]:
-        configs.append({'clients': 3, 'rounds': 3, 'epochs': 1, 'batch_size': b})
+        configs.append({'clients': 3, 'rounds': 3, 'epochs': 2, 'batch_size': b})
     configs.append({'clients': 10, 'rounds': 3, 'epochs': 2, 'batch_size': 16})
     unique_configs = []
     seen = set()
@@ -524,7 +520,7 @@ def collect_and_save_run(framework, cfg, iteration, seed):
         print(f"Error fallback registered in {CSV_FILENAME}\n" + "-"*50)
 
 def main():
-    frameworks = ["fedbiomed", "nvidiaFlare", "flower"]
+    frameworks = ["fedbiomed", "flower", "nvidiaFlare"]
     configs = generate_experiment_matrix()
     seeds = [42, 69, 420]
     
